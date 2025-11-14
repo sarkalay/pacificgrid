@@ -8,7 +8,7 @@ import time
 app = Flask(__name__)
 
 # === CONFIG ===
-DEEPSEEK_API_KEY = "sk-your-key-here"  # ← ဒီနေရာမှာ ထည့်ပါ
+DEEPSEEK_API_KEY = "sk-your-key-here"  # ← ဒီနေရာမှာ သင့် key ထည့်ပါ
 DEEPSEEK_URL = "https://api.deepseek.com/chat/completions"
 MODEL = "deepseek-chat"
 
@@ -76,7 +76,7 @@ def call_deepseek(prompt):
         if resp.status_code == 200:
             return resp.json()["choices"][0]["message"]["content"]
         else:
-            print(f"DeepSeek Error: {resp.status_code}")
+            print(f"DeepSeek Error: {resp.status_code} - {resp.text}")
             return None
     except Exception as e:
         print(f"Error: {e}")
@@ -120,7 +120,5 @@ def keep_alive():
 
 if __name__ == '__main__':
     threading.Thread(target=keep_alive, daemon=True).start()
-    print("X…
-
-AU AI Anytime Server → http://127.0.0.1:5000")
+    print("XAU AI Anytime Server → http://127.0.0.1:5000")
     app.run(host='127.0.0.1', port=5000, debug=False)
