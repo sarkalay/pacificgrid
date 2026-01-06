@@ -12,39 +12,42 @@ class PacificaClient:
         self.priv_key = os.getenv("PACIFICA_AGENT_PRIVATE_KEY")
         self.agent_kp = Keypair.from_base58_string(self.priv_key.strip())
         self.pub_key_str = os.getenv("PACIFICA_AGENT_PUBLIC_KEY")
-        # Base URL ကို documentation အတိုင်း ပြန်စစ်ဆေးထားသည်
+        # SDK အရ API endpoint သည် /v1 အောက်တွင် ရှိသည်
         self.base_url = "https://api.pacifica.fi/v1" 
 
     def get_market_price(self, market_id):
-        """လက်ရှိဈေးနှုန်းကို ဆွဲယူရန် (Error message အသေးစိတ်ပြမည်)"""
+        """SDK အတိုင်း Market Price ကို ဆွဲယူခြင်း"""
         try:
-            # တချို့ API တွေက MON လို့ပဲလိုသလို တချို့က MON-USD လိုပါတယ်
-            url = f"{self.base_url}/ticker?market={market_id}"
-            res = requests.get(url)
+            # SDK ထဲတွင် ticker သို့မဟုတ် markets query သုံးလေ့ရှိသည်
+            res = requests.get(f"{self.base_url}/ticker?market={market_id}")
+            data = res.json()
             
             if res.status_code == 200:
-                data = res.json()
-                # Pacifica API ရဲ့ JSON structure အရ 'lastPrice' သို့မဟုတ် 'markPrice' ဖြစ်နိုင်သည်
-                return float(data.get('lastPrice') or data.get('markPrice') or data.get('price'))
+                # Pacifica SDK အရ ဈေးနှုန်းကို 'last' သို့မဟုတ် 'markPrice' ဖြင့် ပြန်ပေးလေ့ရှိသည်
+                return float(data.get('lastPrice') or data.get('price') or data.get('markPrice'))
             else:
-                print(f"API Error: Status {res.status_code} - {res.text}")
+                print(f"API Error: {res.status_code} - {res.text}")
                 return None
         except Exception as e:
-            print(f"Connection Error: {e}")
+            print(f"Price Connection Error: {e}")
             return None
 
-    def place_order(self, side, price, size):
-        """Order တင်ခြင်း"""
+    def place_order(self, side, price, size, market_id):
+        """SDK ပါ အော်ဒါတင်ခြင်း logic"""
         timestamp = int(time.time() * 1000)
+        
+        # SDK ပါ Batch Order format အရ market id သည် မဖြစ်မနေ ပါရမည်
         payload = {
             "agent": self.pub_key_str,
-            "side": side,
+            "market": market_id,
+            "side": side.upper(),
             "price": str(price),
             "size": str(size),
-            "timestamp": timestamp,
-            "market": os.getenv("MARKET_ID", "MON-USD") # Market ID ထည့်ရန် လိုအပ်နိုင်သည်
+            "type": "LIMIT",
+            "timestamp": timestamp
         }
-        
+
+        # SDK နည်းလမ်းအတိုင်း JSON message ကို Sign လုပ်ခြင်း
         msg = json.dumps(payload, separators=(',', ':')).encode()
         sig = self.agent_kp.sign_message(msg)
         
@@ -53,16 +56,18 @@ class PacificaClient:
             "X-Agent-Pubkey": self.pub_key_str,
             "Content-Type": "application/json"
         }
-        
+
         res = requests.post(f"{self.base_url}/order", json=payload, headers=headers)
         if res.status_code == 200:
             return res.json().get('order_id')
         else:
-            print(f"Order Placement Error: {res.text}")
+            print(f"Order Placement Failed: {res.text}")
             return None
 
     def check_order_status(self, order_id):
+        """Order status စစ်ဆေးခြင်း"""
         try:
             res = requests.get(f"{self.base_url}/order/{order_id}")
             return res.json().get('status')
-        except: return "UNKNOWN"
+        except:
+            return "UNKNOWN"
