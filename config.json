@@ -1,5 +1,5 @@
 {
-    "market_id": "MON-PERP",
+    "market_id": "MON-USD",
     "leverage": 5,
     "grid_settings": {
         "upper_price": 70000.0,
