@@ -1,10 +1,10 @@
 {
-    "market_id": "MON-USD",
+    "market_id": "MON",
     "leverage": 5,
     "grid_settings": {
-        "upper_price": 70000.0,
-        "lower_price": 60000.0,
+        "upper_price": 0.035,
+        "lower_price": 0.025,
         "num_grids": 10,
-        "size_per_grid": 0.001
+        "total_investment_usd": 50.0
     }
 }
