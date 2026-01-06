@@ -1,0 +1,10 @@
+{
+    "market_id": "MON-PERP",
+    "leverage": 5,
+    "grid_settings": {
+        "upper_price": 70000.0,
+        "lower_price": 60000.0,
+        "num_grids": 10,
+        "size_per_grid": 0.001
+    }
+}
