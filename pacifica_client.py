@@ -15,23 +15,28 @@ class PacificaClient:
             
         self.agent_kp = Keypair.from_base58_string(self.priv_key.strip())
         self.pub_key_str = os.getenv("PACIFICA_AGENT_PUBLIC_KEY")
-        # SDK အရ base url သည် https://api.pacifica.fi/v1 ဖြစ်သည်
-        self.base_url = "https://api.pacifica.fi/v1" 
+        # Base URL ကို ဤအတိုင်း အတိအကျ သုံးပါ
+        self.base_url = "https://api.pacifica.fi/api/v1" 
 
     def get_market_price(self, market_id):
-        """SDK စံနှုန်းအတိုင်း ဈေးနှုန်းယူခြင်း"""
+        """Pacifica API မှ Mark Price ကို ရယူခြင်း"""
         try:
-            # SDK ထဲတွင် ticker endpoint သုံး၍ ဈေးနှုန်းယူသည်
-            url = f"{self.base_url}/ticker?market={market_id}"
+            # /info/prices endpoint သည် symbol အားလုံး၏ ဈေးနှုန်းကို list အနေဖြင့် ပြန်ပေးသည်
+            url = f"{self.base_url}/info/prices"
             res = requests.get(url, timeout=10)
             
             if res.status_code == 200:
                 data = res.json()
-                # SDK data structure အရ price ကို ဆွဲထုတ်ခြင်း
-                price = data.get('lastPrice') or data.get('price') or data.get('markPrice')
-                return float(price) if price else None
+                # Data list ထဲတွင် မိမိရှာဖွေနေသော symbol ရှိမရှိ စစ်ဆေးခြင်း
+                for item in data:
+                    if item.get('symbol') == market_id:
+                        # Grid Trading အတွက် mark price က ပိုမို တည်ငြိမ်ပါသည်
+                        return float(item.get('mark'))
+                
+                print(f"Error: {market_id} ကို Market list ထဲမှာ ရှာမတွေ့ပါ။")
+                return None
             else:
-                print(f"Price Fetch Error: {res.status_code}")
+                print(f"API Error: Status {res.status_code} at {url}")
                 return None
         except Exception as e:
             print(f"Price Fetch Exception: {e}")
@@ -41,18 +46,18 @@ class PacificaClient:
         """SDK ပါ create_limit_order logic အတိုင်း အော်ဒါတင်ခြင်း"""
         timestamp = int(time.time() * 1000)
         
-        # SDK payload format အတိအကျ
+        # SDK payload format အတိုင်း ပြင်ဆင်ခြင်း
         payload = {
             "agent": self.pub_key_str,
             "market": market_id,
             "side": side.upper(),
-            "price": str(price), # SDK အရ string ပြောင်းရမည်
-            "size": str(size),   # SDK အရ string ပြောင်းရမည်
-            "type": "LIMIT",     # Limit order ဖြစ်သည်
+            "price": str(price),
+            "size": str(size),
+            "type": "LIMIT",
             "timestamp": timestamp
         }
 
-        # SDK နည်းလမ်းအတိုင်း Signature ပြုလုပ်ခြင်း
+        # JSON payload ကို Sign လုပ်ခြင်း
         msg = json.dumps(payload, separators=(',', ':')).encode()
         sig = self.agent_kp.sign_message(msg)
         
@@ -63,7 +68,7 @@ class PacificaClient:
         }
 
         try:
-            # SDK ကဲ့သို့ /order endpoint သို့ POST ပို့ခြင်း
+            # Order endpoint သို့ POST ပို့ခြင်း
             res = requests.post(f"{self.base_url}/order", json=payload, headers=headers, timeout=10)
             if res.status_code == 200:
                 print(f"Success: {side} order placed at {price}")
